@@ -12,6 +12,9 @@ from xl_tool.xl_io import file_scanning
 
 
 class Text2XML:
+    """通过文本信息生成XML
+    """
+
     def __init__(self):
         self.annotation = "<annotation>\n{}\n</annotation>"
         self.folder = "    <folder>{}</folder>"
@@ -34,6 +37,17 @@ class Text2XML:
         return "\n".join(temp)
 
     def get_xml(self, folder, filename, path, source, size, objects_info):
+        """
+        生成目标检测xml文件
+        Args:
+            folder: 文件夹名字
+            filename: 文件名
+            path: 文件路径
+            source: 源数据库名字
+            size: 图片大小
+            objects_info: 目标信息列表，格式如下：[(name,xmin,ymin,xmax,ymax),
+                                                (name,xmin,ymin,xmax,ymax)]
+        """
         objects = self.get_objects(objects_info)
         self.folder = self.folder.format(folder)
         self.filename = self.filename.format(filename)
@@ -95,8 +109,9 @@ class Coco2Voc:
             temp = f.readlines()
         with open(filename, "w", encoding="utf-8") as f:
             f.write("".join(temp[1:]))
+
     @staticmethod
-    def read_coco(coco_json: str, cat_id = -1):
+    def read_coco(coco_json: str, cat_id=-1):
         """
         Args:
             coco_json: coco json标注文件
@@ -105,7 +120,7 @@ class Coco2Voc:
         with open(coco_json, "r", encoding="utf-8") as f:
             data = json.load(f)
         if type(cat_id) == str:
-            cat_id = [j["id"] for j in data['categories'] if j["supercategory"]==cat_id]
+            cat_id = [j["id"] for j in data['categories'] if j["supercategory"] == cat_id]
         images, categries, annotations = data["images"], data["categories"], data["annotations"]
         valid_image_id = set(
             [item["image_id"] for item in annotations if item["category_id"] in
@@ -119,14 +134,14 @@ class Coco2Voc:
             one["cat_name"] = cat_id_dict[one["category_id"]]["name"].replace(" ", "_")
             anno_dict_list[one["image_id"]].append(one)
         # categries = [cat["name"] for cat in categries]
-        return image_id_dict, cat_id_dict, anno_dict_list,categries
+        return image_id_dict, cat_id_dict, anno_dict_list, categries
 
-    def coco2voc(self, coco_json, cat_id=-1, separate_storing=True,save_path="",database="FoodDection"):
-        image_info, cat_info, anno_info,categries = self.read_coco(coco_json, cat_id)
+    def coco2voc(self, coco_json, cat_id=-1, separate_storing=True, save_path="", database="FoodDection"):
+        image_info, cat_info, anno_info, categries = self.read_coco(coco_json, cat_id)
         save_path = save_path if save_path else os.path.split(coco_json)[0]
         folder = os.path.split(save_path)[1]
         if type(cat_id) == str and separate_storing:
-            sub_cats = [j["name"].replace(" ", "_") for j in categries if j["supercategory"]==cat_id]
+            sub_cats = [j["name"].replace(" ", "_") for j in categries if j["supercategory"] == cat_id]
         else:
             sub_cats = []
         for image_id, image in image_info.items():
@@ -158,36 +173,38 @@ class Coco2Voc:
             for one in annos:
                 object_node = self.createObjectNode(doc, one)
                 root_node.appendChild(object_node)
-                if type(cat_id)==str and (one["cat_name"] in sub_cats):
-                    cat_name = one["cat_name"].replace(" ","_")
+                if type(cat_id) == str and (one["cat_name"] in sub_cats):
+                    cat_name = one["cat_name"].replace(" ", "_")
             # 写入文件
             xml_filename = image["file_name"].strip(".jpg") + ".xml"
-            if separate_storing and type(cat_id)==str:
+            if separate_storing and type(cat_id) == str:
                 path = save_path + "/" + cat_name
-                os.makedirs(path,exist_ok=True)
+                os.makedirs(path, exist_ok=True)
             else:
-                path =save_path
+                path = save_path
             xml_filename = os.path.join(path, xml_filename)
             self.writeXMLFile(doc, xml_filename)
 
 
 def test_coco_2_xml():
     t = Coco2Voc()
-    t.coco2voc(r"F:\Large_dataset\coco\annonations\instances_val2017.json",cat_id="food")
+    t.coco2voc(r"F:\Large_dataset\coco\annonations\instances_val2017.json", cat_id="food")
     t = Coco2Voc()
     t.coco2voc(r"F:\Large_dataset\coco\annonations\instances_train2017.json", cat_id="food")
+
 
 def image_copy():
     t = r"F:\Large_dataset\coco\2017train"
     v = r"F:\Large_dataset\coco\2017val"
-    t_files = file_scanning(t,file_format="jpg|jpeg",full_path=True)
-    v_files = file_scanning(v,file_format="jpg|jpeg",full_path=True)
+    t_files = file_scanning(t, file_format="jpg|jpeg", full_path=True)
+    v_files = file_scanning(v, file_format="jpg|jpeg", full_path=True)
     files = t_files + v_files
     xml_path = r"F:\Large_dataset\coco\annonations"
-    dirs = [d for d in os.listdir(xml_path) if os.path.isdir(xml_path + "/" +d)]
+    dirs = [d for d in os.listdir(xml_path) if os.path.isdir(xml_path + "/" + d)]
     print(dirs)
     for d in dirs:
-        copy_files = [file.replace("xml","jpg") for file in file_scanning(xml_path + "/" +d,file_format="xml",full_path=False)]
+        copy_files = [file.replace("xml", "jpg") for file in
+                      file_scanning(xml_path + "/" + d, file_format="xml", full_path=False)]
         print(f"{d}:{len(copy_files)}")
         for copy_file in copy_files:
             try:

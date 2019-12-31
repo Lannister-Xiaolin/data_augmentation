@@ -23,7 +23,7 @@ from xl_tool.xl_io import file_scanning
 from image_augmentation.config import IMAGE_FORMAT
 from image_augmentation.general.annonation import get_boximgs
 from image_augmentation.general.preprocessing import blending_one_image
-from image_augmentation.storage.voc import Text2XML
+from image_augmentation.transform.voc import Text2XML
 
 
 def get_background_images(path):
