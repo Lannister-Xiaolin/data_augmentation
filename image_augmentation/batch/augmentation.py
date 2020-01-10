@@ -1,5 +1,7 @@
 #!usr/bin/env python3
 # -*- coding: UTF-8 -*-
+# !usr/bin/env python3
+# -*- coding: UTF-8 -*-
 """
 数据增强流程：
     读取候选背景图片列表  ——>  读取图片   ——> 读取标注信息 ——> 截取区域数据 ——> 确定缩放系数 ——>确定嵌入坐标 ——>保持图片和xml文件
@@ -14,11 +16,9 @@
 """
 import os
 import re
-import time
-from math import ceil
 
 import numpy as np
-from random import choice, shuffle, random
+from random import choice, shuffle
 
 from PIL import Image
 from tqdm import tqdm
@@ -104,16 +104,18 @@ def aug_images_from_xml(cat_name, image_files, xml_files, background_path, cat_a
 
 
 def aug_images_from_image(blending_method, image_files, background_path, cat_aug_path, xml_folder, xml_source,
-                          cat_name, target_number=None, x_proportion=0.4, y_proportion=0.5, max_num=1000,
-                          simple_augs=("contrast", "grey", "affine", None)):
+                          cat_name, target_number=None, x_proportion=0.4, y_proportion=0.5, max_num=10000,
+                          simple_augs=("contrast", "grey", "affine", None), min_size_sum=200):
     background_images = get_background_images(background_path)
+    if min_size_sum:
+        image_files = [file for file in image_files if sum(Image.open(file).size)>min_size_sum]
     pbar = tqdm(image_files) if not target_number else tqdm([choice(image_files) for _ in range(target_number)])
     count = 0
     for image_file in pbar:
         if count >= max_num:
             continue
         base_name = os.path.basename(image_file).split(".")[0]
-        base_name = cat_name.replace(" ", "_") if re.search("[^a-zA-Z0-9_\-\.]", base_name) else base_name
+        base_name = cat_name.replace(" ", "_") if re.search(r"[^a-zA-Z0-9_\-.]", base_name) else base_name
         background_img_array = np.array(Image.open(choice(background_images)))
         if sum(background_img_array.shape[:2]) < 200:
             continue
@@ -126,7 +128,7 @@ def aug_images_from_image(blending_method, image_files, background_path, cat_aug
             aug_method = choice(simple_augs)
             if aug_method:
                 image_array = np.array(Image.open(save_img))
-                Image.fromarray(aug_method(image_array)).save(save_img)
+                Image.fromarray(aug_dict[aug_method](image_array)).save(save_img)
         text2xml = Text2XML()
         objects_info = [[cat_name] + coordinate]
         boximg_file = f"aug_{1}_{count}_{base_name}.jpg"
@@ -135,7 +137,6 @@ def aug_images_from_image(blending_method, image_files, background_path, cat_aug
         aug_image.save(cat_aug_path + "/" + boximg_file)
         with open(cat_aug_path + "/" + boxxml_file, "w") as f:
             f.write(xml)
-
         count += 1
         pbar.set_description("图片增强进度：")
 
@@ -148,6 +149,7 @@ def aug_images_mul_object(object_path, background_config_file, save_path, target
     folder = r"Food2019"
     source = 'FoodDection'
     cats = os.listdir(object_path)
+    cats.remove("unknown")
     background_configs = read_json(background_config_file)
     # background_config = x
     cats_files = {cat: file_scanning(f"{object_path}/{cat}", file_format=IMAGE_FORMAT) for cat in cats}
@@ -204,8 +206,8 @@ def test_single_xml():
         os.makedirs(cat_aug_path, exist_ok=True)
         image_files, xml_files = get_xml_image(cat_path, cat_path)
         print("类别：{}\t有效标注文件数量：{}".format(dir_, len(image_files)))
-        aug_images_xml(dir_, image_files, xml_files, background_path, cat_aug_path, folder, source,
-                       x_proportion=x_proportion, y_proportion=y_proportion)
+        aug_images_from_xml(dir_, image_files, xml_files, background_path, cat_aug_path, folder, source,
+                            x_proportion=x_proportion, y_proportion=y_proportion)
 
 
 def test_single():

@@ -43,7 +43,7 @@ class BlendingBase:
         scale = min(x_scale, y_scale)
         if scale < 0.99:
             pass
-            print("嵌入图像{}过大，需进行缩放，缩放比例：{:.2f}".format(blending_size, scale))
+            # print("嵌入图像{}过大，需进行缩放，缩放比例：{:.2f}".format(blending_size, scale))
         return scale
 
     @classmethod
@@ -54,8 +54,84 @@ class BlendingBase:
             print("增强图片存储失败！:".format(save))
             pass
 
+    @classmethod
+    def valid_size_confirm(cls, image_sizes, region_size, sp_dis, min_rescale):
+        """
+        该函数暂时无用
+        Args:
+            image_sizes:尺寸列表
+            region_size: 嵌入区域大小
+            sp_dis ： 组合方式
+            min_rescale: 最大缩放区域
+        """
+        if sp_dis in (1, 5):
+            return (sum([size[0] for size in image_sizes]) * min_rescale) < region_size[0]
+        elif sp_dis(2, 6):
+            return (sum([size[1] for size in image_sizes]) * min_rescale) < region_size[1]
+        elif sp_dis in (3, 4):
+            for i in range(2, -1, -1):
+                one_combine = image_sizes[i]
+                valid_x = (one_combine[0] + max([image_sizes[j][0] for j in range(3) if j != i])) < region_size[0]
+                valid_y = (one_combine[1] < region_size[1] and sum([image_sizes[j][1] for j in range(3) if
+                                                                    j != i])) < region_size[1]
+                if valid_x and valid_y:
+                    return True
+            return False
+        else:
+            return False
+        pass
+
+    @classmethod
+    def paralleling_caculate(cls, image_sizes, region_size, sp_dis):
+        # print("输入尺寸：", image_sizes, "\t区域大小:", region_size)
+        first, second = (0, 1) if sp_dis in (1, 5) else (1, 0)
+        first_sum = sum([size[first] for size in image_sizes])
+        if first_sum < region_size[first]:
+            rescales = [1 if size[second] < region_size[second] else region_size[second] / size[second] for size in
+                        image_sizes]
+        else:
+            # print("图片过大，进行缩放！")
+            rescale = region_size[first] * 0.95 / first_sum
+            rescales = [rescale if size[second] * rescale < region_size[second] else region_size[second] / size[second]
+                        for size in
+                        image_sizes]
+        image_sizes = [[int(c * rescale) for c in size] for (rescale, size) in zip(rescales, image_sizes)]
+        margin_first_max = region_size[first] - sum([size[first] for size in image_sizes])
+        margin_seconds = [region_size[second] - size[second] for size in image_sizes]
+        positions = []
+        margin_first_remain = margin_first_max
+        first_start = 0
+        for size, margin_second in zip(image_sizes, margin_seconds):
+            position = [None, None, None, None]
+            margin = int(margin_first_remain * random.random())
+            # print(margin)
+            margin_first_remain = margin_first_remain - margin
+            position_first = margin + first_start
+            position_second = int(margin_second * random.random())
+            first_start = position_first + size[first]
+            position[first], position[second], position[first + 2], position[second + 2] = \
+                position_first, position_second, first_start, position_second + size[second]
+            positions.append(position)
+        # print("缩放比例：", rescales, "\n缩放后大小：", image_sizes)
+        return image_sizes, rescales, positions
+
+    @classmethod
+    def calculate_mul_blending_positions(cls, image_sizes, region_size, sp_dis):
+        """计算嵌入位置
+            1，2为并列排列
+            3为混合排列，根据尺寸随机切分成上下或者左右2块，然后再做并列排列（暂未完成）
+        """
+        if sp_dis in (1, 5, 2, 6):
+            return cls.paralleling_caculate(image_sizes, region_size, sp_dis)
+        else:
+            pass
+
 
 class DirectBlending(BlendingBase):
+    """
+    直接对图片进行融合嵌入，主要包括单目标融合和多目标融合
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -80,6 +156,9 @@ class DirectBlending(BlendingBase):
             y_proportion: 嵌入图片y长度与背景图片y长度的最大占比
             resample: 图像插值方式
             save_img:是否保持图片，是则输入路径，否则为空字符
+        Returns:
+            数组：Image格式的融合图片 + 融合后的bounding box坐标
+                blending image,[xmin,ymin,xmax,ymax]
         """
         background_img = Image.open(background_img_file) if background_img_array is None else \
             Image.fromarray(background_img_array)
@@ -98,8 +177,35 @@ class DirectBlending(BlendingBase):
         blending_result = background_img
         if save_img:
             self.save_image(blending_result, save_img)
-        blending_result.show()
+        # blending_result.show()
         return blending_result, [x, y, x + blending_img.size[0], y + blending_img.size[1]]
+
+    def blending_images(self, background_img_file, blending_img_files, sp_dis, save_img="",blending_region=None):
+        """
+        多目标融合：
+        多目标融合的位置分布主要包括以下几种方式：
+            左右并列排列  1
+            上下并列排列  2
+            混合排列   3
+        """
+        background_img = Image.open(background_img_file)
+        # print("背景图片大小：", background_img.size)
+        blending_imgs = [Image.open(blending_img_file) for blending_img_file in blending_img_files]
+        image_sizes = [img.size for img in blending_imgs]
+        blending_region = blending_region if blending_region else (0, 0, background_img.size[0], background_img.size[1])
+        x, y = blending_region[0], blending_region[1]
+        region_size = blending_region[2] - blending_region[0], blending_region[3] - blending_region[1]
+        image_sizes, rescales, positions = self.calculate_mul_blending_positions(image_sizes, region_size, sp_dis)
+        positions = [(position[0] + x, position[1] + y, position[2] + x, position[3] + y) for position in positions]
+        # print("嵌入坐标位置：", positions)
+        blending_imgs = [blending_img.resize(size) for (blending_img, size) in zip(blending_imgs, image_sizes)]
+        for blending_img, position in zip(blending_imgs, positions):
+            # print(blending_img.size, position)
+            background_img.paste(blending_img, (position[0], position[1]))
+        if save_img:
+            self.save_image(background_img, save_img)
+        # background_img.show()
+        return background_img,image_sizes, positions
 
 
 class PyramidBlending(BlendingBase):
@@ -161,10 +267,10 @@ class PyramidBlending(BlendingBase):
             if background_img_array is None else background_img_array[:, :, ::-1]
         blending = cv2.imdecode(np.fromfile(blending_img_file, dtype=np.uint8), cv2.IMREAD_UNCHANGED) \
             if blending_img_array is None else blending_img_array[:, :, ::-1]
-        print(blending.shape)
+        # print(blending.shape)
         x, y, blending = self.rescale_blending(blending, background, x, y,
                                                x_proportion, y_proportion, x_shift, y_shift)
-        print(blending.shape)
+        # print(blending.shape)
 
         g_background = self.generate_gaussian_pyramid(background)
         g_blending = self.generate_gaussian_pyramid(blending)
@@ -175,7 +281,7 @@ class PyramidBlending(BlendingBase):
                                       x / background.shape[1], y / background.shape[0])[:, :, ::-1])
         if save_img:
             self.save_image(blending_result, save_img)
-        blending_result.show()
+        # blending_result.show()
         return blending_result, [x, y, x + blending.shape[1], y + blending.shape[0]]
 
 
@@ -195,13 +301,21 @@ def test_blending_direct():
     blender.blending_one_image(background_img_file, blending_img_file)
 
 
+def test_mul_blending():
+    a = DirectBlending()
+    backgroud_file = r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\4_背景底图\2.jpg"
+    blending_files = [
+        r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\5_抽取目标\broccoli\000000000009.jpg",
+        r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\5_抽取目标\broccoli\000000000009.jpg",
+        r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\5_抽取目标\orange\000000000009.jpg"]
+    print(a.blending_images(backgroud_file, blending_files, 2, (20, 80, 620, 440)))
+
+
 def main():
-    test_blending_pyramid()
-    test_blending_direct()
+    # test_blending_pyramid()
+    # test_blending_direct()
+    test_mul_blending()
 
 
 if __name__ == '__main__':
     main()
-import imgaug as ia
-from imgaug import augmenters as iaa
-iaa.Alpha

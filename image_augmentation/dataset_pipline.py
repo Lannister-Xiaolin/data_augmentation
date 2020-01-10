@@ -187,7 +187,7 @@ def aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_cl
     aug_images_mul_object(object_w_path, background_config_file, aug_path_mul, target_number=target_number)
 
 
-base_path = r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集"
+base_path = r"G:\food_dataset"
 background_config_file = f"{base_path}/4_背景底图/background_config.json"
 website_a_path = f"{base_path}/2_网络图片/0_已标框"
 wesite_c_path = f"{base_path}/2_网络图片/1_已分类"
@@ -198,7 +198,7 @@ object_save_path = f"{base_path}/5_抽取目标"
 object_w_path = f"{base_path}/5_抽取目标/网络"
 aug_path = f"{base_path}/7_增强图片"
 aug_path_mul = f"{base_path}/7_增强图片/mul_object"
-object_classes = ['broccoli', 'corn kernels', 'hamburger', 'pizza', 'pork belly piece']
+
 background_path = f"{base_path}/4_背景底图"
 single_direct_aug_path = f"{base_path}/7_增强图片/single_direct"
 single_pyramid_aug_path = f"{base_path}/7_增强图片/single_pyramid"
@@ -208,8 +208,9 @@ dataset_path = f"{base_path}/8_生成数据集"
 def auto_pipline():
     auged_classes = ['broccoli', 'corn kernels', 'hamburger', 'pizza', 'pork belly piece', 'unknown']
     created_dataset_classes = ['broccoli', 'corn kernels', 'hamburger', 'pizza', 'pork belly piece', 'unknown']
-    # auged_classes = []
-    # created_dataset_classes = []
+    object_classes = ['broccoli', 'corn kernels', 'hamburger', 'pizza', 'pork belly piece',"corn","bacon"]
+    auged_classes = ['unknown']
+    created_dataset_classes = []
     print("1——标注数据入库")
     data_to_my_path(temp_path, website_a_path, real_a_path)
     print("2——目标抽取")
@@ -223,8 +224,8 @@ def auto_pipline():
                             object_w_path=object_w_path, real_a_path=real_a_path,
                             created_dataset_classes=created_dataset_classes,
                             dataset_path=dataset_path, object_classes=object_classes)
-    # print("5——目标检测数据集组合")
-    # aug_mul_object(object_w_path, background_config_file, aug_path_mul, 5000)
+    print("5——目标检测数据集组合")
+    aug_mul_object(object_w_path, background_config_file, aug_path_mul, 1000*len(object_classes))
 
 
 if __name__ == '__main__':

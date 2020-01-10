@@ -3,6 +3,9 @@
 from PIL import Image
 from cv2 import namedWindow, imshow, waitKey, WINDOW_FREERATIO, destroyAllWindows
 from image_augmentation.general.blending import PyramidBlending, DirectBlending
+import numpy as np
+from random import uniform
+import imgaug.augmenters as iaa
 
 
 def read_with_rgb(image_file):
@@ -11,6 +14,40 @@ def read_with_rgb(image_file):
     if img.mode is not "RGB":
         img = img.convert("RGB")
     return img
+
+
+def grey_world(img_array):
+    """白平衡处理函数
+    Args:
+        img_array:输入三通道图像数组
+    """
+    R = img_array[:, :, 0].mean()
+    G = img_array[:, :, 1].mean()
+    B = img_array[:, :, 2].mean()
+    avg = (B + G + R) / 3
+    img_array[:, :, 0] = np.minimum(img_array[:, :, 0] * (avg / R), 255)
+    img_array[:, :, 1] = np.minimum(img_array[:, :, 1] * (avg / G), 255)
+    img_array[:, :, 2] = np.minimum(img_array[:, :, 2] * (avg / B), 255)
+    return img_array.astype(np.uint8)
+
+
+def linear_contrast(img_array, offset=0.3):
+    """对比度：线性变换"""
+    value = offset * uniform(-1, 1) + 1
+    seq = iaa.Sequential([
+        iaa.LinearContrast(value)
+    ])
+    return seq(images=[img_array])[0]
+
+
+def affine_with_rotate_scale(img_array, x_scale=(0.9, 1.1), y_scale=(0.9, 1.1), rotate=(-5, 5)):
+    """简单仿射变换，即旋转和缩放"""
+    seq = iaa.Sequential([iaa.Affine(
+        scale={"x": x_scale, "y": y_scale},  # scale images to 80-120% of their size, individually per axis
+        rotate=rotate,  # rotate by -45 to +45 degrees
+        order=[0, 1]
+    )])
+    return seq(images=[img_array])[0]
 
 
 def cv_show_image(image_file, window_name="图片"):
@@ -26,9 +63,20 @@ def blending_one_image(blending_method="direct", background_img_file=None, blend
                        x=None, y=None, x_proportion=0.6, y_proportion=0.6,
                        x_shift=(0.5, 1.5), y_shift=(1.0, 1.9), save_img=""):
     blender = DirectBlending() if blending_method == "direct" else PyramidBlending()
-    blending_result, [x, y, x1, y1] = blender.blending_one_image(background_img_file, blending_img_file, background_img_array, blending_img_array,
-                               x, y, x_proportion, y_proportion, x_shift, y_shift, save_img)
+    blending_result, [x, y, x1, y1] = blender.blending_one_image(background_img_file, blending_img_file,
+                                                                 background_img_array, blending_img_array,
+                                                                 x, y, x_proportion, y_proportion, x_shift, y_shift,
+                                                                 save_img)
     return blending_result, [x, y, x1, y1]
+
+
+def blending_images(background_img_file, blending_img_files, sp_dis, save_img="", blending_region=None,
+                    blending_method="direct"):
+    blender = DirectBlending() if blending_method == "direct" else PyramidBlending()
+    background_img, image_sizes, positions = blender.blending_images(background_img_file, blending_img_files, sp_dis,
+                                                                     save_img,
+                                                                     blending_region)
+    return background_img, image_sizes, positions
 
 
 def main():

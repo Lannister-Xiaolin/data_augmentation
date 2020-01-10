@@ -6,9 +6,10 @@ import os
 import shutil
 import xml.dom
 import xml.dom.minidom
-from collections import defaultdict
 from xml.dom.minidom import Document
-from xl_tool.xl_io import file_scanning
+from collections import defaultdict
+
+from xl_tool.xl_io import file_scanning,read_txt
 
 
 class Text2XML:
@@ -136,12 +137,42 @@ class Coco2Voc:
         # categries = [cat["name"] for cat in categries]
         return image_id_dict, cat_id_dict, anno_dict_list, categries
 
-    def coco2voc(self, coco_json, cat_id=-1, separate_storing=True, save_path="", database="FoodDection"):
-        image_info, cat_info, anno_info, categries = self.read_coco(coco_json, cat_id)
+    @staticmethod
+    def read_object365(coco_json: str, cat_id=-1):
+        """
+        Args:
+            coco_json: coco json标注文件
+            cat_id: 提取类别,-1表示提取所有类别，字符串表示某一大类，类别表示指定类别id
+        """
+        with open(coco_json, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if type(cat_id) == str:
+            valid_cats = read_txt(cat_id,return_list=True)
+            cat_id = [j["id"] for j in data['categories'] if j["name"] in valid_cats]
+        images, categries, annotations = data["images"], data["categories"], data["annotations"]
+        valid_image_id = set(
+            [item["image_id"] for item in annotations if item["category_id"] in
+             cat_id] if cat_id != -1 else [item["image_id"] for item in annotations])
+        print("有效文件数量：{}".format(len(valid_image_id)))
+        image_id_dict = {one["id"]: one for one in images if one["id"] in valid_image_id}
+        cat_id_dict = {one["id"]: one for one in categries}
+        anno_dict_list = defaultdict(list)
+        for one in annotations:
+            one = copy.deepcopy(one)
+            one["cat_name"] = cat_id_dict[one["category_id"]]["name"].replace(" ", "_")
+            anno_dict_list[one["image_id"]].append(one)
+        # categries = [cat["name"] for cat in categries]
+        return image_id_dict, cat_id_dict, anno_dict_list, categries
+
+    def coco2voc(self, coco_json, cat_id=-1, object365=False,separate_storing=True, save_path="", database="FoodDection"):
+        image_info, cat_info, anno_info, categries = self.read_coco(coco_json, cat_id) if not \
+            object365 else self.read_object365(coco_json, cat_id)
         save_path = save_path if save_path else os.path.split(coco_json)[0]
         folder = os.path.split(save_path)[1]
-        if type(cat_id) == str and separate_storing:
+        if type(cat_id) == str and separate_storing and not object365:
             sub_cats = [j["name"].replace(" ", "_") for j in categries if j["supercategory"] == cat_id]
+        elif object365:
+            sub_cats = [i.replace(" ","_") for i in read_txt(cat_id,return_list=True)]
         else:
             sub_cats = []
         for image_id, image in image_info.items():
@@ -179,6 +210,8 @@ class Coco2Voc:
             xml_filename = image["file_name"].strip(".jpg") + ".xml"
             if separate_storing and type(cat_id) == str:
                 path = save_path + "/" + cat_name
+                if cat_name=="":
+                    input("ddd")
                 os.makedirs(path, exist_ok=True)
             else:
                 path = save_path
@@ -191,7 +224,37 @@ def test_coco_2_xml():
     t.coco2voc(r"F:\Large_dataset\coco\annonations\instances_val2017.json", cat_id="food")
     t = Coco2Voc()
     t.coco2voc(r"F:\Large_dataset\coco\annonations\instances_train2017.json", cat_id="food")
+def object365_coco_2_xml():
+    t = Coco2Voc()
+    t.coco2voc(r"F:\Large_dataset\Objects365\Annotations\val\val.json", save_path=r"F:\Large_dataset\Objects365\xml",
+               object365=True,cat_id=r"F:\Large_dataset\Objects365\food.txt")
+    t = Coco2Voc()
+    t.coco2voc(r"F:\Large_dataset\Objects365\Annotations\train\train.json", object365=True,
+               save_path=r"F:\Large_dataset\Objects365\xml",
+               cat_id=r"F:\Large_dataset\Objects365\food.txt")
 
+
+def image_copy_365():
+    t = r"F:\Large_dataset\Objects365\Images\train\train"
+    v = r"F:\Large_dataset\Objects365\Images\val\val"
+    t_files = file_scanning(t, file_format="jpg|jpeg", full_path=True)
+    v_files = file_scanning(v, file_format="jpg|jpeg", full_path=True)
+    files = t_files + v_files
+    xml_path = r"F:\Large_dataset\Objects365\xml"
+    dirs = [d for d in os.listdir(xml_path) if os.path.isdir(xml_path + "/" + d)]
+    print(dirs)
+    for d in dirs:
+        copy_files = [file.replace("xml", "jpg") for file in
+                      file_scanning(xml_path + "/" + d, file_format="xml", full_path=False)]
+        print(f"{d}:{len(copy_files)}")
+        for copy_file in copy_files:
+            try:
+                shutil.copy(t + "/" + copy_file, f"{xml_path}/{d}/{copy_file}")
+            except FileNotFoundError:
+                try:
+                    shutil.copy(v + "/" + copy_file, f"{xml_path}/{d}/{copy_file}")
+                except FileNotFoundError:
+                    print("fuck no file")
 
 def image_copy():
     t = r"F:\Large_dataset\coco\2017train"
@@ -208,11 +271,13 @@ def image_copy():
         print(f"{d}:{len(copy_files)}")
         for copy_file in copy_files:
             try:
-                shutil.copy(t + "/" + copy_file, f"{xml_path}/{d}/c{copy_file}")
+                shutil.copy(t + "/" + copy_file, f"{xml_path}/{d}/{copy_file}")
             except FileNotFoundError:
                 try:
-                    shutil.copy(v + "/" + copy_file, f"{xml_path}/{d}/c{copy_file}")
+                    shutil.copy(v + "/" + copy_file, f"{xml_path}/{d}/{copy_file}")
                 except FileNotFoundError:
                     print("fuck no file")
-    image_copy()
+
 # test_coco_2_xml()
+# object365_coco_2_xml()
+# image_copy_365()

@@ -1,18 +1,12 @@
 #!usr/bin/env python3
 # -*- coding: UTF-8 -*-
 import os
-import shutil
 
-from image_augmentation.config import IMAGE_FORMAT
+from image_augmentation.general.config import IMAGE_FORMAT
 from xl_tool.xl_io import file_scanning
 extract_path = r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\3_公开数据集抽取\原始标注文件"
 imagenet_data = r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\3_公开数据集抽取\原始标注文件\hamburger"
-import xml.dom
 import xml.dom.minidom
-from xml.dom.minidom import Document
-from xml.etree.ElementTree import ElementTree,Element
-
-from collections import defaultdict
 
 image_files = file_scanning(imagenet_data, file_format=IMAGE_FORMAT,full_path=False)
 xml_files = (file_scanning(imagenet_data, file_format=".xml",full_path=False))
