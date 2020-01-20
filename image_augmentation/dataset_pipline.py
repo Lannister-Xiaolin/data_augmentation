@@ -30,7 +30,7 @@ import re
 import shutil
 import random
 
-random.seed = 100
+# random.seed = 100
 from tqdm import tqdm
 from xl_tool.xl_io import file_scanning, read_txt
 from xl_tool.xl_general_preprocessing import count_files
@@ -106,8 +106,8 @@ def object_extract(public_path, wesite_path, real_path, save_path,
 def aug_single_object(object_path, aug_path, background_path, auged_classes, target_numbers=(100, 1500)):
     aug_path_d = f"{aug_path}/single_direct"
     aug_path_p = f"{aug_path}/single_pyramid"
-    zip_compress(aug_path_d, f"{aug_path}/single_direct.zip")
-    zip_compress(aug_path_p, f"{aug_path}/single_pyramid.zip")
+    zip_compress(aug_path_d, f"{os.path.split(aug_path)[0]}/single_direct.zip")
+    zip_compress(aug_path_p, f"{os.path.split(aug_path)[0]}/single_pyramid.zip")
     delete_old_scenario(aug_path_p)
     delete_old_scenario(aug_path_d)
     folder = r"Food2019"
@@ -147,14 +147,16 @@ def copy_files_train_val(files_lists, cats, save_path, val_split=0.8):
 
 
 def delete_old_scenario(scenario_path):
-    dirs = os.listdir(scenario_path)
-    for d in dirs:
-        if d != "unknown":
-            if os.path.isfile(f"{scenario_path}/{d}"):
-                os.remove((f"{scenario_path}/{d}"))
-            else:
-                shutil.rmtree(f"{scenario_path}/{d}")
-
+    sub_datasets = os.listdir(scenario_path)
+    for sub in sub_datasets:
+        path = f"{scenario_path}/{sub}"
+        dirs = os.listdir(path)
+        for d in dirs:
+            if d != "unknown":
+                if os.path.isfile(f"{path}/{d}"):
+                    os.remove((f"{path}/{d}"))
+                else:
+                    shutil.rmtree(f"{path}/{d}")
 
 
 def zip_compress(path, zip_filename, compression=zipfile.ZIP_DEFLATED):
@@ -175,15 +177,17 @@ def zip_compress(path, zip_filename, compression=zipfile.ZIP_DEFLATED):
 
 def create_classify_dataset(single_direct_aug_path, wesite_c_path, object_w_path, real_a_path, dataset_path,
                             object_classes, created_dataset_classes,
-                            website_limit=500, object_limit=500):
+                            website_limit=600, object_limit=600):
     specified_scenario = f"{dataset_path}/specified_scenario"
     unspecified_scenario = f"{dataset_path}/unspecified_scenario"
+    zip_compress(dataset_path,
+                 f"{os.path.split(os.path.abspath(dataset_path))[0]}"
+                 f"/生成数据集_{str(time.localtime().tm_mon).rjust(2, '0')}{time.localtime().tm_yday}.zip")
     try:
         delete_old_scenario(specified_scenario)
         delete_old_scenario(unspecified_scenario)
     except:
         pass
-    zip_compress(dataset_path, f"{dataset_path}/生成数据集_{str(time.localtime().tm_mon).rjust(2, '0')}{time.localtime().tm_yday}.zip")
     object_classes = object_classes + ["unknown"]
     website_cats = [d for d in os.listdir(single_direct_aug_path) if
                     (d in object_classes and (d not in created_dataset_classes))]
@@ -217,11 +221,11 @@ def create_classify_dataset(single_direct_aug_path, wesite_c_path, object_w_path
 def aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_classes, target_number=5000):
     # save_path = r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\7_增强图片\多类别组合"
     os.makedirs(aug_path_mul, exist_ok=True)
-    try:
-        if not (set(os.listdir(aug_path_mul)) - set(auged_classes)):
-            return
-    except:
-        pass
+    # try:
+    #     if not (set(os.listdir(aug_path_mul)) - set(auged_classes)):
+    #         return
+    # except:
+    #     pass
     aug_images_mul_object(object_w_path, background_config_file, aug_path_mul, target_number=target_number)
 
 
@@ -233,7 +237,7 @@ real_a_path = f"{base_path}/1_真实场景/0_已标框"
 public_a_path = f"{base_path}/3_公开数据集抽取/0_已筛框"
 temp_path = f"{base_path}/temp"
 object_save_path = f"{base_path}/5_抽取目标"
-object_w_path = f"{base_path}/5_抽取目标/网络"
+object_w_path = f"{base_path}/5_抽取目标/混合"
 aug_path = f"{base_path}/7_增强图片"
 aug_path_mul = f"{base_path}/7_增强图片/mul_object"
 
@@ -245,28 +249,29 @@ dataset_path = f"{base_path}/8_生成数据集"
 
 def auto_pipline():
     auged_classes = ['broccoli', 'corn_kernels', 'hamburger', 'pizza', 'pork_belly_piece', 'unknown']
-    created_dataset_classes = ['broccoli', 'corn kernels', 'hamburger', 'pizza', 'pork_belly_piece', 'unknown']
-    object_classes = ['broccoli', 'corn_kernels', 'hamburger', 'pizza', 'pork_belly_piece', "corn", "bacon"]
+    # created_dataset_classes = ['broccoli', 'corn kernels', 'hamburger', 'pizza', 'pork_belly_piece', 'unknown']
+    object_classes = ['bacon', 'broccoli', 'chicken_wing', 'corn', 'drumstick', 'hamburger', 'pizza', 'steak', 'tilapia', 'toast']
     auged_classes = ['unknown']
     created_dataset_classes = []
-    print("1——标注数据入库")
-    try:
-        data_to_my_path(temp_path, website_a_path, real_a_path)
-    except:
-        pass
-    print("2——目标抽取")
-    object_extract(public_a_path, website_a_path, real_a_path, object_save_path,
-                   object_classes=object_classes, filter_frozen=True, filter_processed=True,
-                   min_size_sum=120, w_h_limits=(10, 0.1))
+    # print("1——标注数据入库")
+    # try:
+    #     data_to_my_path(temp_path, website_a_path, real_a_path)
+    # except:
+    #     pass
+    # print("2——目标抽取")
+    # object_extract(public_a_path, website_a_path, real_a_path, object_save_path,
+    #                object_classes=object_classes, filter_frozen=True, filter_processed=True,
+    #                min_size_sum=120, w_h_limits=(10, 0.1))
     print("3——图片增强-单类别直接融合")
-    aug_single_object(f"{object_save_path}/网络", aug_path, background_path, auged_classes, target_numbers=(20, 1500))
+    aug_single_object(f"{object_save_path}/混合", aug_path, background_path, auged_classes, target_numbers=(50, 1500))
     print("4——分类数据组合")
     create_classify_dataset(single_direct_aug_path=single_direct_aug_path, wesite_c_path=wesite_c_path,
                             object_w_path=object_w_path, real_a_path=real_a_path,
                             created_dataset_classes=created_dataset_classes,
                             dataset_path=dataset_path, object_classes=object_classes)
     print("5——目标检测数据集组合")
-    aug_mul_object(object_w_path, background_config_file, aug_path_mul, 1000 * len(object_classes))
+    aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_classes,
+                   target_number=1000 * len(object_classes))
 
 
 if __name__ == '__main__':
