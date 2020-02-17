@@ -53,13 +53,16 @@ def get_xml_image(image_path, xml_path):
 
 def get_propotions(cat):
     big_propotion_cats = {"pizza"}
-    small_propotion_cats = {"hamburger"}
+    small_propotion_cats = {"chicken_wing","drumstick","toast"}
+    tiny_propotion_cats = {"egg_tart",}
     if cat in big_propotion_cats:
         return 0.8, 0.8
     elif cat in small_propotion_cats:
-        return 0.4, 0.5
+        return 0.6, 0.5
+    elif cat in tiny_propotion_cats:
+        return 0.4, 0.4
     else:
-        return 0.6, 0.6
+        return 0.7, 0.6
 
 
 def aug_images_from_xml(cat_name, image_files, xml_files, background_path, cat_aug_path, xml_folder,
@@ -119,7 +122,7 @@ def aug_images_from_image(blending_method, image_files, background_path, cat_aug
         background_img_array = np.array(Image.open(choice(background_images)))
         if sum(background_img_array.shape[:2]) < 200:
             continue
-        save_img = f"{cat_aug_path}/aug_{1}_{count}_{base_name}.jpg"
+        save_img = f"{cat_aug_path}/aug_{1}_{count}_{blending_method}_{base_name}.jpg"
         aug_image, coordinate = blending_one_image(blending_method, background_img_array=background_img_array,
                                                    blending_img_array=np.array(Image.open(image_file)),
                                                    x_proportion=x_proportion,
@@ -131,9 +134,9 @@ def aug_images_from_image(blending_method, image_files, background_path, cat_aug
                 Image.fromarray(aug_dict[aug_method](image_array)).save(save_img)
         text2xml = Text2XML()
         objects_info = [[cat_name] + coordinate]
-        boximg_file = f"aug_{1}_{count}_{base_name}.jpg"
+        boximg_file = os.path.basename(save_img)
         xml = text2xml.get_xml(xml_folder, boximg_file, boximg_file, xml_source, aug_image.size, objects_info)
-        boxxml_file = f"aug_{1}_{count}_{base_name}.xml"
+        boxxml_file =boximg_file.replace("jpg", "xml")
         aug_image.save(cat_aug_path + "/" + boximg_file)
         with open(cat_aug_path + "/" + boxxml_file, "w") as f:
             f.write(xml)
@@ -186,6 +189,7 @@ def aug_images_mul_object(object_path, background_config_file, save_path, target
         with open(boxxml_file, "w") as f:
             f.write(xml)
         count += 1
+        # print(count)
     print(cats_count)
 
 

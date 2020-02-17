@@ -40,4 +40,9 @@ def xml_object_extract(xml_file, image_file, save_path, object_classes=None, min
         save_dir = save_path + "/" + name
         os.makedirs(save_dir, exist_ok=True)
         crop_file = os.path.join(save_dir, os.path.basename(image_file))
-        img_crop.save(crop_file)
+        img_crop = img_crop.convert("RGB")
+        try:
+            img_crop.save(crop_file)
+        except:
+            print("----------")
+            print("----------")
