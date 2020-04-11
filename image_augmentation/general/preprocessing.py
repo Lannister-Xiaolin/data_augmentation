@@ -2,7 +2,8 @@
 # -*- coding: UTF-8 -*-
 from PIL import Image
 from cv2 import namedWindow, imshow, waitKey, WINDOW_FREERATIO, destroyAllWindows
-from image_augmentation.general.blending import PyramidBlending, DirectBlending
+from image_augmentation.general.blending import  DirectBlending
+from  xl_tool.augmentation.image.general.blending import PoissonBlending,PyramidBlending
 import numpy as np
 from random import uniform
 import imgaug.augmenters as iaa
@@ -11,7 +12,7 @@ import imgaug.augmenters as iaa
 def read_with_rgb(image_file):
     """将非rgb格式图片转成rgb"""
     img = Image.open(image_file)
-    if img.mode is not "RGB":
+    if img.mode != "RGB":
         img = img.convert("RGB")
     return img
 
@@ -76,8 +77,14 @@ def cv_show_image(image_file, window_name="图片"):
 def blending_one_image(blending_method="direct", background_img_file=None, blending_img_file=None,
                        background_img_array=None, blending_img_array=None,
                        x=None, y=None, x_proportion=0.6, y_proportion=0.6,
-                       x_shift=(0.1, 1.9), y_shift=(0.5, 1.9), save_img=""):
-    blender = DirectBlending() if blending_method == "direct" else PyramidBlending()
+                       x_shift=(0.5, 1.5), y_shift=(0.5, 1.9), save_img=""):
+    if blending_method == "poisson":
+        blender = PoissonBlending()
+    elif blending_method == "direct":
+        blender = DirectBlending()
+    else:
+        blender =PyramidBlending(num_pyramid=5)
+    # blender = DirectBlending() if blending_method == "direct" else
     blending_result, [x, y, x1, y1] = blender.blending_one_image(background_img_file, blending_img_file,
                                                                  background_img_array, blending_img_array,
                                                                  x, y, x_proportion, y_proportion, x_shift, y_shift,

@@ -27,7 +27,7 @@ from xl_tool.xl_io import file_scanning, read_json
 
 from image_augmentation.general.config import IMAGE_FORMAT
 from image_augmentation.general.annonation import get_boximgs
-from image_augmentation.general.preprocessing import blending_one_image, blending_images, linear_contrast, grey_world, \
+from image_augmentation.general.blending import blending_one_image, blending_images, linear_contrast, grey_world, \
     affine_with_rotate_scale
 from image_augmentation.transform.voc import Text2XML
 
