@@ -177,14 +177,6 @@ def aug_single_object(object_path, aug_path, background_path, auged_classes, obj
             # threads = list(range(thread_num))
         for thread in threads:
             thread.join()
-        # aug_images_from_image("", image_files, background_path, cat_aug_path_p, folder, source, cat_name=dir_,
-        #                       target_number=target_numbers[0], x_proportion=x_proportion, y_proportion=y_proportion)
-        # aug_images_from_image("direct", image_files, background_path, cat_aug_path_d, folder, source,
-        #                       cat_name=dir_, target_number=target_numbers[1],
-        #                       x_proportion=x_proportion, y_proportion=y_proportion)
-        # aug_images_from_image("poisson", image_files, background_path, cat_aug_path_po, folder, source,
-        #                       cat_name=dir_, target_number=target_numbers[1],
-        #                       x_proportion=x_proportion, y_proportion=y_proportion)
     print("--->单目标增强完成")
 
 
