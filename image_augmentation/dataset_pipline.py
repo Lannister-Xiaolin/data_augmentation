@@ -43,18 +43,20 @@ real_data_pattern = ""
 website_pattern = "百度|baidu|必应|biying|搜狗|sougou"
 public_pattern = "^\d{12}\.|^n\d{8}"
 
+
 def update_bg_config_file():
-    files = file_scanning(r"G:\food_dataset\4_背景底图", "xml",sub_scan=False)
+    files = file_scanning(r"G:\food_dataset\4_背景底图", "xml", sub_scan=False)
     configs = []
     for file in files:
         temp = {}
-        temp["file"] = file.replace("xml","jpg")
+        temp["file"] = file.replace("xml", "jpg")
         from xl_tool.data.image.annonation import get_bndbox
         box = get_bndbox(file)[0]
         temp["region"] = [int(i) for i in box["coordinates"]]
         configs.append(temp)
     from xl_tool.xl_io import save_to_json
-    save_to_json(configs, r"G:\food_dataset\4_背景底图\background_config.json",indent=4)
+    save_to_json(configs, r"G:\food_dataset\4_背景底图\background_config.json", indent=4)
+
 
 # background_config_file =
 
@@ -186,9 +188,10 @@ def aug_single_object(object_path, aug_path, background_path, auged_classes, obj
     print("--->单目标增强完成")
 
 
-def copy_files_train_val(files_lists, cats, save_path, val_split=0.8):
+def copy_files_train_val(files_lists, cats, save_path, val_split=0.8, limit=100000):
     for files, cat in zip(files_lists, cats):
         random.shuffle(files)
+        files = files[:limit]
         val_start = int(val_split * len(files))
         print(cat, val_start, len(files))
         train_dst_dir = f"{save_path}/train/{cat}"
@@ -249,7 +252,8 @@ def remove_duplicat(files):
 
 def create_classify_dataset(single_direct_aug_path, wesite_c_path, object_w_path, real_a_path, dataset_path,
                             object_classes, created_dataset_classes, single_replace_aug_path, single_poisson_aug_path,
-                            website_limit=600, object_limit=600,aug_limits=[1100,300,100], replace_limit=600, save_old=False):
+                            website_limit=600, object_limit=600, aug_limits=[1100, 300, 100], replace_limit=600,
+                            save_old=False):
     specified_scenario = f"{dataset_path}/specified_scenario"
 
     unspecified_scenario = f"{dataset_path}/unspecified_scenario"
@@ -298,13 +302,14 @@ def create_classify_dataset(single_direct_aug_path, wesite_c_path, object_w_path
     copy_files_train_val(real_files, real_cats, specified_scenario, val_split=0.6)
 
     print("--->不限场景数据-->复制直接融合数据")
-    copy_files_train_val(direct_aug_files[:aug_limits[0]], direct_aug_cats, unspecified_scenario, val_split=0.8)
-    copy_files_train_val(replace_aug_files[:replace_limit], direct_aug_cats, unspecified_scenario, val_split=0.8)
-    copy_files_train_val(poisson_aug_files[:aug_limits[1]], direct_aug_cats, unspecified_scenario, val_split=0.8)
+    copy_files_train_val(direct_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[0])
+    copy_files_train_val(replace_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=replace_limit)
+    copy_files_train_val(poisson_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[1])
+    # copy_files_train_val(p, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[1])
     print("--->不限场景数据-->复制真实场景数据")
     copy_files_train_val(real_files, real_cats, unspecified_scenario, val_split=0.8)
     print("--->不限场景数据-->复制网络图片")
-    copy_files_train_val(website_files[:website_limit], website_cats, unspecified_scenario, val_split=0.8)
+    copy_files_train_val(website_files, website_cats, unspecified_scenario, val_split=0.8, limit=website_limit)
     print("--->不限场景数据-->复制目标数据")
     copy_files_train_val(object_files[:object_limit], object_cats, unspecified_scenario, val_split=0.8)
 
@@ -390,16 +395,17 @@ def auto_pipline():
     #                object_classes=object_classes, filter_frozen=True, filter_processed=False,
     #                min_size_sum=100, w_h_limits=(10, 0.1))
     # # input("请确认目标数据合并和筛选完成！！")
-    update_bg_config_file()
+    # update_bg_config_file()
     print("3——图片增强-单类别直接融合")
-    # aug_path = f"{base_path}/7_增强图片/experienment"  # 临时
+    # # aug_path = f"{base_path}/7_增强图片/experienment"  # 临时
     aug_single_object(f"{object_save_path}/混合", aug_path, background_path, auged_classes, object_classes,
                       background_config_file, real_a_path=real_a_path,
-                      target_numbers=(1200, 300, 100), save_old=save_old, object_valid=False)
+                      target_numbers=(1500, 300, 100), save_old=save_old, object_valid=False)
     print("4——分类数据组合")
     create_classify_dataset(single_direct_aug_path=single_direct_aug_path, wesite_c_path=wesite_c_path,
-                            object_w_path=object_w_path, real_a_path=real_a_path, replace_limit=400,aug_limits=[800,150,50],
-                            created_dataset_classes=created_dataset_classes, website_limit=700, object_limit=300,
+                            object_w_path=object_w_path, real_a_path=real_a_path, replace_limit=500,
+                            aug_limits=[1000, 200, 100],
+                            created_dataset_classes=created_dataset_classes, website_limit=600, object_limit=600,
                             dataset_path=dataset_path, object_classes=object_classes
                             , save_old=save_old, single_replace_aug_path=single_replace_aug_path,
                             single_poisson_aug_path=single_poisson_aug_path)
@@ -410,4 +416,3 @@ def auto_pipline():
 
 if __name__ == '__main__':
     auto_pipline()
-
