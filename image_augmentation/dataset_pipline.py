@@ -140,7 +140,7 @@ def aug_single_object(object_path, aug_path, background_path, auged_classes, obj
     source = 'FoodDection'
     dirs = [d for d in os.listdir(object_path) if
             (os.path.isdir(f"{object_path}/{d}") and (d not in auged_classes) and d in object_classes)]
-    # replace_augmentation(object_path, real_a_path, aug_path_r, object_classes)
+    replace_augmentation(object_path, real_a_path, aug_path_r, object_classes)
     for dir_ in dirs:
         x_proportion, y_proportion = get_propotions(dir_)
         cat_path = object_path + "/" + dir_
@@ -256,10 +256,17 @@ def create_classify_dataset(single_direct_aug_path, wesite_c_path, object_w_path
                      f"{os.path.split(os.path.abspath(dataset_path))[0]}"
                      f"/生成数据集_{str(time.localtime().tm_mon).rjust(2, '0')}{time.localtime().tm_yday}.zip")
     try:
-        delete_old_scenario(specified_scenario)
-        delete_old_scenario(unspecified_scenario)
-        delete_old_scenario(unspecified_scenario_nonaug_nonreal)
-        delete_old_scenario(unspecified_scenario_nonaug)
+        threads = []
+        threads.append(threading.Thread(target=delete_old_scenario,args=(specified_scenario, )))
+        threads.append(threading.Thread(target=delete_old_scenario, args=(unspecified_scenario,)))
+        threads.append(threading.Thread(target=delete_old_scenario, args=(unspecified_scenario_nonaug_nonreal,)))
+        threads.append(threading.Thread(target=delete_old_scenario, args=(unspecified_scenario_nonaug,)))
+        for thread in threads:
+            time.sleep(0.02)
+            thread.start()
+            # threads = list(range(thread_num))
+        for thread in threads:
+            thread.join()
     except:
         pass
     object_classes = object_classes + ["empty"]
@@ -286,24 +293,38 @@ def create_classify_dataset(single_direct_aug_path, wesite_c_path, object_w_path
     website_files = remove_duplicat(website_files)
     object_files = [file_scanning(f"{object_w_path}/{d}", file_format=IMAGE_FORMAT, sub_scan=True)
                     for d in object_cats]
-    print("--->指定场景数据-->复接融合数据")
-    copy_files_train_val(direct_aug_files[:aug_limits[0]], direct_aug_cats, specified_scenario, val_split=0.8)
-    copy_files_train_val(replace_aug_files[:replace_limit], direct_aug_cats, specified_scenario, val_split=0.8)
-    copy_files_train_val(poisson_aug_files[:aug_limits[1]], direct_aug_cats, specified_scenario, val_split=0.8)
-    print("--->指定场景数据-->复制真实场景数据")
-    copy_files_train_val(real_files, real_cats, specified_scenario, val_split=0.6)
+    # print("--->指定场景数据-->复接融合数据")
+    # copy_files_train_val(direct_aug_files[:aug_limits[0]], direct_aug_cats, specified_scenario, val_split=0.8, limit=aug_limits[0])
+    # copy_files_train_val(replace_aug_files[:replace_limit], direct_aug_cats, specified_scenario, val_split=0.8, limit=replace_limit)
+    # copy_files_train_val(poisson_aug_files[:aug_limits[1]], direct_aug_cats, specified_scenario, val_split=0.8, limit=aug_limits[1])
+    # print("--->指定场景数据-->复制真实场景数据")
+    # copy_files_train_val(real_files, real_cats, specified_scenario, val_split=0.6)
 
-    print("--->不限场景数据-->复制直接融合数据")
-    copy_files_train_val(direct_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[0])
-    copy_files_train_val(replace_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=replace_limit)
-    copy_files_train_val(poisson_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[1])
-    # copy_files_train_val(p, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[1])
-    print("--->不限场景数据-->复制真实场景数据")
-    copy_files_train_val(real_files, real_cats, unspecified_scenario, val_split=0.8)
-    print("--->不限场景数据-->复制网络图片")
-    copy_files_train_val(website_files, website_cats, unspecified_scenario, val_split=0.8, limit=website_limit)
-    print("--->不限场景数据-->复制目标数据")
-    copy_files_train_val(object_files[:object_limit], object_cats, unspecified_scenario, val_split=0.8)
+    threads = []
+    threads.append(threading.Thread(target=copy_files_train_val, args=(direct_aug_files,direct_aug_cats, unspecified_scenario),kwargs=dict(val_split=0.8, limit=aug_limits[0])))
+    threads.append(threading.Thread(target=copy_files_train_val, args=(replace_aug_files, direct_aug_cats, unspecified_scenario),kwargs=dict(val_split=0.8, limit=replace_limit)))
+    threads.append(threading.Thread(target=copy_files_train_val, args=(poisson_aug_files, direct_aug_cats, unspecified_scenario),kwargs=dict(val_split=0.8, limit=aug_limits[1])))
+    threads.append(threading.Thread(target=copy_files_train_val, args=(real_files, real_cats, unspecified_scenario,),kwargs=dict(val_split=0.8,)))
+    threads.append(threading.Thread(target=copy_files_train_val, args=(website_files, website_cats, unspecified_scenario),kwargs=dict(val_split=0.8, limit=aug_limits[0])))
+    threads.append(threading.Thread(target=copy_files_train_val, args=(object_files, object_cats, unspecified_scenario,),kwargs=dict(val_split=0.8, limit=object_limit)))
+    for thread in threads:
+        time.sleep(0.02)
+        thread.start()
+        # threads = list(range(thread_num))
+    for thread in threads:
+        thread.join()
+
+    # print("--->不限场景数据-->复制直接融合数据")
+    # copy_files_train_val(direct_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[0])
+    # copy_files_train_val(replace_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=replace_limit)
+    # copy_files_train_val(poisson_aug_files, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[1])
+    # # copy_files_train_val(p, direct_aug_cats, unspecified_scenario, val_split=0.8, limit=aug_limits[1])
+    # print("--->不限场景数据-->复制真实场景数据")
+    # copy_files_train_val(real_files, real_cats, unspecified_scenario, val_split=0.8)
+    # print("--->不限场景数据-->复制网络图片")
+    # copy_files_train_val(website_files, website_cats, unspecified_scenario, val_split=0.8, limit=website_limit)
+    # print("--->不限场景数据-->复制目标数据")
+    # copy_files_train_val(object_files, object_cats, unspecified_scenario, val_split=0.8, limit=object_limit)
 
     # print("--->不限场景数据，无数据增强-->复制真实场景数据")
     # copy_files_train_val(real_files, real_cats, unspecified_scenario_nonaug, val_split=0.6)
@@ -321,7 +342,7 @@ def create_classify_dataset(single_direct_aug_path, wesite_c_path, object_w_path
     #                      val_split=0.8)
 
 
-def aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_classes, target_number=5000):
+def aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_classes, target_number=5000,cats=None):
     # save_path = r"E:\Programming\Python\8_Ganlanz\food_recognition\dataset\自建数据集\7_增强图片\多类别组合"
     os.makedirs(aug_path_mul, exist_ok=True)
     # try:
@@ -329,7 +350,7 @@ def aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_cl
     #         return
     # except:
     #     pass
-    aug_images_mul_object(object_w_path, background_config_file, aug_path_mul, target_number=target_number)
+    aug_images_mul_object(object_w_path, background_config_file, aug_path_mul, target_number=target_number,cats=cats)
 
 
 base_path = r"G:\food_dataset"
@@ -368,7 +389,24 @@ def auto_pipline():
                       'oyster', 'peanut', 'potato',
                       'prawn', 'pumpkin_block', 'ribs',
                       'salmon', 'scallion_cake', 'scallop',
-                      'shiitake_mushroom', 'whole_chicken']
+                      'shiitake_mushroom', 'whole_chicken'] +\
+                     ['almond', 'asparagus', 'baby_cabbage',
+                      'banana_slice', 'band_fish_chunks', 'basa_fish_fillet',
+                      'beancurd_skin', 'beef_tendon', 'broccolini',
+                      'cashew', 'cherry_tomatoes', 'chestnut',
+                      'cod_pieces', 'cowpea', 'croissant',
+                      'dough_sticks', 'dried_tofu', 'dumplings',
+                      'fish_tofu', 'french_fries', 'fried_chicken_chunks',
+                      'fuzhu', 'garlic_clove', 'gluten',
+                      'lemon_slice', 'lotus_root_slice', 'meatball',
+                      'melon_seeds', 'okra', 'pippi_shrimp',
+                      'popcorn_chicken', 'pork_ribs', 'potato_cake',
+                      'potato_chunks', 'potato_slice', 'puff_pastry',
+                      'pumpkin_seed', 'quail_eggs', 'squid',
+                      'squid_tentacles', 'steamed_bread', 'sweet_pepper',
+                      'tofu', 'trotters', 'waffle', 'walnut_meat',
+                      'white_pomfret', 'white_shell', 'whole_chicken_wing',
+                      'yellow_croaker']
     auged_classes = ['empty', ]
     # auged_classes = ['empty', 'bacon', 'broccoli', 'chicken_wing',
     #                  'corn', 'drumstick', 'hamburger', 'pizza',
@@ -384,26 +422,30 @@ def auto_pipline():
     #     pass
     # print("2——目标抽取")
     # object_extract(public_a_path, website_a_path, real_a_path, object_save_path,
-    #                object_classes=object_classes, filter_frozen=True, filter_processed=False,
+    #                object_classes=object_classes, filter_frozen=True, filter_processed=True,
     #                min_size_sum=100, w_h_limits=(10, 0.1))
-    # # input("请确认目标数据合并和筛选完成！！")
+    # input("请确认目标数据合并和筛选完成！！")
     # update_bg_config_file()
-    print("3——图片增强-单类别直接融合")
+    # print("3——图片增强-单类别直接融合")
+    # aug_path = f"{base_path}/7_增强图片/"  #
+    # aug_single_object(f"{object_save_path}/混合", aug_path, background_path, auged_classes, object_classes,
+    #                   background_config_file, real_a_path=real_a_path,
+    #                   target_numbers=(1000, 200, 50), save_old=save_old, object_valid=True)
     # # aug_path = f"{base_path}/7_增强图片/experienment"  # 临时
-    aug_single_object(f"{object_save_path}/混合", aug_path, background_path, auged_classes, object_classes,
-                      background_config_file, real_a_path=real_a_path,
-                      target_numbers=(1500, 300, 100), save_old=save_old, object_valid=False)
-    print("4——分类数据组合")
-    create_classify_dataset(single_direct_aug_path=single_direct_aug_path, wesite_c_path=wesite_c_path,
-                            object_w_path=object_w_path, real_a_path=real_a_path, replace_limit=500,
-                            aug_limits=[1000, 200, 100],
-                            created_dataset_classes=created_dataset_classes, website_limit=600, object_limit=600,
-                            dataset_path=dataset_path, object_classes=object_classes
-                            , save_old=save_old, single_replace_aug_path=single_replace_aug_path,
-                            single_poisson_aug_path=single_poisson_aug_path)
-    # print("5——目标检测数据集组合")
-    # aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_classes,
-    #                target_number=1000 * len(object_classes))
+    # aug_single_object(f"{object_save_path}/混合", aug_path, background_path, auged_classes, object_classes,
+    #                   background_config_file, real_a_path=real_a_path,
+    #                   target_numbers=(1000, 200, 50), save_old=save_old, object_valid=True)
+    # print("4——分类数据组合")
+    # create_classify_dataset(single_direct_aug_path=single_direct_aug_path, wesite_c_path=wesite_c_path,
+    #                         object_w_path=object_w_path, real_a_path=real_a_path, replace_limit=300,
+    #                         aug_limits=[1000, 200, 100],
+    #                         created_dataset_classes=created_dataset_classes, website_limit=800, object_limit=500,
+    #                         dataset_path=dataset_path, object_classes=object_classes
+    #                         , save_old=save_old, single_replace_aug_path=single_replace_aug_path,
+    #                         single_poisson_aug_path=single_poisson_aug_path)
+    print("5——目标检测数据集组合")
+    aug_mul_object(object_w_path, background_config_file, aug_path_mul, auged_classes,
+                   target_number=1000 * len(object_classes),cats=object_classes)
 
 
 if __name__ == '__main__':
